@@ -17,11 +17,12 @@ function install(vue, serviceDefineMap) {
         for (const actionName in this.$options.actions) {
           this[actionName] = this.$options.actions[actionName]
         }
-      if (this.$options.services)
+      if (this.$options.services) {
         for (const name in this.$options.services) {
           const serviceName = this.$options.services[name]
           this[name] = getService(serviceName)
         }
+      }
       if (this.$name) {
       } else if (this.$options.name) {
         this.$name = this.$options.name
@@ -100,7 +101,7 @@ function devtoolsAction(fn, nameObj) {
       actionTempList.push(type)
     } else {
       actionTempList.push(type)
-      type = '[' + this.$name + ']' + actionTempList.join('->')
+      if (this) type = '[' + this.$name + ']' + actionTempList.join('->')
       if (devtoolHook) {
         Vue.nextTick(function () {
           devtoolHook.emit('vuex:mutation', {
