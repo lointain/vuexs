@@ -100,7 +100,7 @@ function devtoolsAction(fn, nameObj) {
       actionTempList.push(type)
     } else {
       actionTempList.push(type)
-      if(this)type = '[' + this.$name + ']' + actionTempList.join('->')
+      type = '[' + this.$name + ']' + actionTempList.join('->')
       if (devtoolHook) {
         Vue.nextTick(function () {
           devtoolHook.emit('vuex:mutation', {
