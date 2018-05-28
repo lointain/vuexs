@@ -1,10 +1,11 @@
 {
-  "name": "vuexs",
-  "version": "0.0.1",
+  "name": "@lointain/vuexs",
+  "version": "0.0.3",
   "description": "simple vue store",
   "main": "src/index.js",
   "scripts": {
-    "dev": "node examples/server.js"
+    "dev": "node examples/server.js",
+    "publish": "npm publish --access=public"
   },
   "repository": {
     "type": "git",
