@@ -1,37 +1,54 @@
 import Vue from 'vue'
 
 function install(vue, serviceDefineMap) {
+  Vue.config.optionMergeStrategies.fetch = function (toVal, fromVal, aaa) {
+    return async function () {
+      if (toVal) toVal.apply(this, arguments)
+      if (fromVal) {
+        await fromVal.apply(this, arguments)
+        if (typeof process !== 'undefined' && process.server)
+          nuxtRender.apply(this, arguments)
+      }
+    }
+  }
   const serviceMap = {}
   for (const key in serviceDefineMap) {
     serviceDefineMap.name = key
     serviceMap[key] = createService(serviceDefineMap[key], key)
   }
   Vue.$service = serviceMap
-  Vue.mixin({
-    beforeCreate: function () {
+  const mixin = function () {
+    if (this.$parent)
+      this.$service = this.$parent.$service
+    else
+      this.$service = Vue.$service
+    if (this.$options && this.$options.actions)
+      for (const actionName in this.$options.actions) {
+        this[actionName] = this.$options.actions[actionName]
+      }
+    if (this.$options && this.$options.services) {
+      for (const name in this.$options.services) {
+        const serviceName = this.$options.services[name]
+        this[name] = getService(serviceName)
+      }
+    }
+    if (this.$name) {
+    } else if (this.$options && this.$options.name) {
+      this.$name = this.$options.name
+    } else if (this.$vnode) {
+      this.$name = this.$vnode.tag
+    } else {
+      this.$name = ''
+    }
+  }
+  vue.mixin({
+    fetch: function () {
       if (this.$parent)
         this.$service = this.$parent.$service
       else
         this.$service = Vue.$service
-      if (this.$options.actions)
-        for (const actionName in this.$options.actions) {
-          this[actionName] = this.$options.actions[actionName]
-        }
-      if (this.$options.services) {
-        for (const name in this.$options.services) {
-          const serviceName = this.$options.services[name]
-          this[name] = getService(serviceName)
-        }
-      }
-      if (this.$name) {
-      } else if (this.$options.name) {
-        this.$name = this.$options.name
-      } else if (this.$vnode) {
-        this.$name = this.$vnode.tag
-      } else {
-        this.$name = ''
-      }
-    }
+    },
+    beforeCreate: mixin
   })
   for (const key in serviceMap) {
     const service = serviceMap[key]
@@ -61,7 +78,8 @@ function devtoolPlugin(serviceMap) {
       state[key] = service.$data
       for (const computedName in service._computedWatchers) {
         let name = '[C]' + computedName
-        if (serviceTempMap.state[key] && serviceTempMap.state[key][computedName]) {
+        if (serviceTempMap.state[key] &&
+          serviceTempMap.state[key][computedName]) {
           name += '(' + serviceTempMap.state[key][computedName] + ')'
         }
         Object.defineProperty(state[key], name, {
@@ -95,8 +113,10 @@ function devtoolsAction(fn, nameObj) {
     for (let i = 0; i < args.length; i++) {
       argsJson.push(JSON.stringify(args[i]))
     }
-    let type = [name.service, name.action,].join('.') + '(' + [...argsJson].join(',') + ')'
-    if (serviceTempMap.action[name.service] && serviceTempMap.action[name.service][name.action]) {
+    let type = [name.service, name.action].join('.') + '(' +
+      [...argsJson].join(',') + ')'
+    if (serviceTempMap.action[name.service] &&
+      serviceTempMap.action[name.service][name.action]) {
       // name += '(' + serviceTempMap.state[key][computedName] + ')'
       actionTempList.push(type)
     } else {
@@ -121,7 +141,6 @@ function devtoolsAction(fn, nameObj) {
   }
 }
 
-
 function createService(service, serviceName) {
   const option = {
     data: {},
@@ -129,13 +148,18 @@ function createService(service, serviceName) {
   }
   if (service.computed)
     option.computed = service.computed
-  if (service.state)
+  if (service.state) {
+    if (typeof window !== 'undefined' && window.__NUXT__ && window.__NUXT__.service && window.__NUXT__.service[serviceName]) {
+      option.data = window.__NUXT__.service[serviceName]
+    }
     for (const key in service.state) {
       if (typeof service.state[key] === 'function')
         option.computed[key] = service.state[key]
-      else
+      else if (!option.data[key])
         option.data[key] = service.state[key]
     }
+  }
+
   if (service.watch)
     option.watch = service.watch
   const _vm = new Vue(option)
@@ -191,17 +215,19 @@ function mapAction(serviceName, stateList) {
 
 function state(serviceName) {
   return function (target, name, descriptor) {
-    if (typeof target[name] === "string") {
+    if (typeof target[name] === 'string') {
       if (typeof target.computed === 'undefined')
         target.computed = {}
       target.computed[name] = function () {
         return getService(serviceName)[descriptor.value]
       }
-    } else if (typeof target[name] === "object") {
+    } else if (typeof target[name] === 'object') {
       const valueList = target[name]
       if (typeof target.computed === 'undefined')
         target.computed = {}
-      target.computed = {...target.computed, ...mapState(serviceName, valueList)}
+      target.computed = {
+        ...target.computed, ...mapState(serviceName, valueList)
+      }
       if (Vue.config.devtools) {
         if (target.name) {
           normalizeMap(valueList).forEach(({key, val}) => {
@@ -235,13 +261,13 @@ function setServiceTempAction(service, key, name) {
 
 function action(serviceName) {
   return function (target, name, descriptor) {
-    if (typeof target[name] === "string") {
+    if (typeof target[name] === 'string') {
       if (typeof target.actions === 'undefined')
         target.actions = {}
       target.actions[name] = function (...args) {
         getService(serviceName)[descriptor.value].call(this, ...args)
       }
-    } else if (typeof target[name] === "object") {
+    } else if (typeof target[name] === 'object') {
       const valueList = target[name]
       if (typeof target.actions === 'undefined')
         target.actions = {}
@@ -274,12 +300,34 @@ function service(target, name, descriptor) {
   // target.computed = {...target.computed, ...mapState(serviceName, valueList)}
 }
 
+function nuxtRender(ctx) {
+  ctx.beforeNuxtRender(({Components, nuxtState}) => {
+    if (Components.length > 0) {
+      const component = Components[0]
+      if (component.super && component.super.$service) {
+        const serviceList = component.super.$service
+        const stateList = {}
+        for (let serviceName in serviceList) {
+          stateList[serviceName] = {}
+          const service = serviceList[serviceName]
+          const dataMap = service._data
+          for (let dataName in dataMap) {
+            stateList[serviceName][dataName] = dataMap[dataName]
+          }
+        }
+        nuxtState.service = stateList
+      }
+    }
+  })
+}
+
 export {
   action,
   state,
   service,
   mapState,
-  mapAction
+  mapAction,
+  nuxtRender
 }
 export default {
   install,
