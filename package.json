@@ -2,12 +2,12 @@
   "name": "@lointain/vuexs",
   "version": "0.0.6",
   "description": "simple vue store",
-  "main": "dist/src/index.js",
+  "main": "dist/src/index.min.js",
   "scripts": {
     "dev": "node examples/server.js",
     "publish": "npm publish --access=public",
-    "build": "babel ./src/index.js  --out-dir .",
-    "prepublishOnly": "npm run build"
+    "build": "babel ./src/index.js  --out-dir .&&uglifyjs ./dist/src/index.js -o ./dist/src/index.min.js -c -m -r 'Vue,require,exports'",
+    "prepublishOnly": "npm run build&&npm version patch"
   },
   "repository": {
     "type": "git",
