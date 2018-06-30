@@ -5,6 +5,10 @@ import Vuexs from 'vuexs'
 import services from './services'
 import {currency} from './currency'
 
+Vuexs.created = function (services) {
+  console.log('hello', this, arguments)
+  console.log(services)
+}
 Vue.use(Vuexs, services)
 Vue.filter('currency', currency)
 
