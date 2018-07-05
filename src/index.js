@@ -165,8 +165,6 @@ function createService(service, serviceName) {
 
   if (service.watch)
     option.watch = service.watch
-  if (typeof service.created === 'function')
-    option.created = service.created
   const _vm = new Vue(option)
   if (service.actions)
     for (const key in service.actions) {
@@ -181,6 +179,8 @@ function createService(service, serviceName) {
   if (service.service)
     _vm.service = service.service
   _vm.$name = serviceName
+  if (typeof service.created === 'function')
+    option.created.apply(_vm)
   return _vm
 }
 

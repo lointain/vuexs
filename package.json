@@ -5,7 +5,7 @@
   "main": "dist/src/index.min.js",
   "scripts": {
     "dev": "node examples/server.js",
-    "publish": "npm publish",
+    "publish": "",
     "build": "babel ./src/index.js -d ../dist && uglifyjs dist/src/index.js -o dist/src/index.min.js -c -m -r 'Vue,require,exports'",
     "prepublishOnly": "npm run build&&npm version patch"
   },
