@@ -66,6 +66,12 @@ function install(vue, serviceDefineMap) {
 
   if (typeof this.created === 'function')
     this.created(Vue.$service)
+
+  for (const key in serviceMap) {
+    let service = serviceMap[key]
+    if (service.$$serviceCreated)
+      service.$$serviceCreated.apply(service)
+  }
 }
 
 const devtoolHook =
@@ -180,7 +186,7 @@ function createService(service, serviceName) {
     _vm.service = service.service
   _vm.$name = serviceName
   if (typeof service.created === 'function')
-    option.created.apply(_vm)
+    _vm.$$serviceCreated = service.created
   return _vm
 }
 
